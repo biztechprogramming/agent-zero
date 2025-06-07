@@ -18,4 +18,6 @@
 
 {{ include './agent.system.tool.browser.md' }}
 
+{{ include './agent.system.tool.claude_code.md' }}
+
 {{ include './agent.system.tool.scheduler.md' }}
