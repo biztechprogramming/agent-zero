@@ -59,9 +59,12 @@ window.filewatcherManager = {
             const response = await api.sendData("filewatcher_list", {});
             if (response.watchers) {
                 this.renderWatchers(response.watchers);
+            } else {
+                this.renderWatchers([]);
             }
         } catch (error) {
             console.error("Failed to load watchers:", error);
+            this.renderWatchers([]);
         }
     },
     
@@ -70,9 +73,12 @@ window.filewatcherManager = {
             const response = await api.sendData("filewatcher_investigations", {});
             if (response.investigations) {
                 this.renderInvestigations(response.investigations);
+            } else {
+                this.renderInvestigations([]);
             }
         } catch (error) {
             console.error("Failed to load investigations:", error);
+            this.renderInvestigations([]);
         }
     },
     
@@ -168,13 +174,41 @@ window.filewatcherManager = {
         container.innerHTML = html;
     },
     
-    async createWatcher() {
-        const modal = document.getElementById('filewatcher-modal');
-        modal.classList.remove('hidden');
+    toggleCreateForm() {
+        const formContainer = document.getElementById('filewatcher-form-container');
+        if (!formContainer) {
+            console.error('Filewatcher form container not found');
+            return;
+        }
         
-        // Reset form
-        document.getElementById('watcher-form').reset();
-        document.getElementById('watcher-id').value = '';
+        if (formContainer.classList.contains('hidden')) {
+            // Show form and reset it
+            formContainer.classList.remove('hidden');
+            document.getElementById('watcher-form').reset();
+            document.getElementById('watcher-id').value = '';
+            
+            // Update button text
+            const btn = document.querySelector('[onclick="filewatcherManager.toggleCreateForm()"]');
+            if (btn) {
+                btn.innerHTML = '<i class="fas fa-times"></i> Cancel';
+            }
+        } else {
+            // Hide form
+            this.cancelEdit();
+        }
+    },
+    
+    cancelEdit() {
+        const formContainer = document.getElementById('filewatcher-form-container');
+        if (formContainer) {
+            formContainer.classList.add('hidden');
+        }
+        
+        // Reset button text
+        const btn = document.querySelector('[onclick="filewatcherManager.toggleCreateForm()"]');
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-plus"></i> Create Watcher';
+        }
     },
     
     async editWatcher(watcherId) {
@@ -183,8 +217,8 @@ window.filewatcherManager = {
             const watcher = response.watchers.find(w => w.id === watcherId);
             
             if (watcher) {
-                const modal = document.getElementById('filewatcher-modal');
-                modal.classList.remove('hidden');
+                const formContainer = document.getElementById('filewatcher-form-container');
+                formContainer.classList.remove('hidden');
                 
                 // Populate form
                 document.getElementById('watcher-id').value = watcher.id;
@@ -192,7 +226,13 @@ window.filewatcherManager = {
                 document.getElementById('watcher-directory').value = watcher.directory;
                 document.getElementById('watcher-pattern').value = watcher.file_pattern || '';
                 document.getElementById('watcher-prompt').value = watcher.prompt;
-                document.getElementById('watcher-error-patterns').value = watcher.error_patterns.join('\\n');
+                document.getElementById('watcher-error-patterns').value = watcher.error_patterns.join('\n');
+                
+                // Update button text
+                const btn = document.querySelector('[onclick="filewatcherManager.toggleCreateForm()"]');
+                if (btn) {
+                    btn.innerHTML = '<i class="fas fa-times"></i> Cancel';
+                }
             }
         } catch (error) {
             console.error("Failed to load watcher for editing:", error);
@@ -223,7 +263,7 @@ window.filewatcherManager = {
                 await api.sendData("filewatcher_create", data);
             }
             
-            this.closeModal();
+            this.cancelEdit();
             this.loadWatchers();
             showToast("Watcher saved successfully", "success");
         } catch (error) {
@@ -274,9 +314,6 @@ window.filewatcherManager = {
         }
     },
     
-    closeModal() {
-        document.getElementById('filewatcher-modal').classList.add('hidden');
-    },
     
     escapeHtml(unsafe) {
         return unsafe
@@ -290,9 +327,20 @@ window.filewatcherManager = {
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
+    // Ensure filewatcherManager is available globally
+    if (!window.filewatcherManager) {
+        console.error('filewatcherManager not initialized properly');
+    }
+    
     // Add styles
     const style = document.createElement('style');
     style.textContent = `
+        /* Override modal-content width for settings modal */
+        #settingsModal .modal-content {
+            max-width: none !important;
+            width: 100% !important;
+        }
+        
         #filewatcher-panel {
             padding: 20px;
         }
@@ -427,43 +475,29 @@ document.addEventListener('DOMContentLoaded', () => {
             color: var(--text-secondary);
         }
         
-        #filewatcher-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
+        .hidden {
+            display: none !important;
         }
         
-        #filewatcher-modal.hidden {
-            display: none;
-        }
-        
-        .modal-content {
-            background: var(--primary-bg);
+        #filewatcher-form-container {
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
             border-radius: 8px;
-            padding: 30px;
-            max-width: 600px;
-            width: 90%;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-        
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            padding: 20px;
             margin-bottom: 20px;
         }
         
-        .modal-header h3 {
-            margin: 0;
-            color: var(--text-primary);
+        #filewatcher-form-container .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            #filewatcher-form-container .form-row {
+                grid-template-columns: 1fr;
+            }
         }
         
         .form-group {
@@ -498,11 +532,13 @@ document.addEventListener('DOMContentLoaded', () => {
             margin-top: 4px;
         }
         
-        .modal-actions {
+        .form-actions {
             display: flex;
             justify-content: flex-end;
             gap: 10px;
-            margin-top: 30px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
         }
         
         .btn-small {
