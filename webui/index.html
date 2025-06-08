@@ -123,6 +123,7 @@
     <script type="text/javascript" src="js/file_browser.js"></script>
     <script type="text/javascript" src="js/modal.js"></script>
     <script type="text/javascript" src="js/tunnel.js"></script>
+    <script type="text/javascript" src="js/filewatcher.js"></script>
 </head>
 
 <body class="dark-mode">
@@ -597,11 +598,15 @@
                                      :class="{'active': activeTab === 'scheduler'}"
                                      @click="switchTab('scheduler')"
                                      title="Task Scheduler">Task Scheduler</div>
+                                <div class="settings-tab"
+                                     :class="{'active': activeTab === 'filewatcher'}"
+                                     @click="switchTab('filewatcher')"
+                                     title="File Watcher">File Watcher</div>
                             </div>
                         </div>
 
                         <!-- Display settings sections for agent, external, developer tabs -->
-                        <div id="settings-sections" x-show="activeTab !== 'scheduler'">
+                        <div id="settings-sections" x-show="activeTab !== 'scheduler' && activeTab !== 'filewatcher'">
                             <nav>
                                 <ul>
                                     <template x-for="(section, index) in filteredSections" :key="section.title">
@@ -1448,6 +1453,56 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- File Watcher Tab Content -->
+                        <div id="filewatcher-tab-content" x-show="activeTab === 'filewatcher'" x-cloak>
+                            <!-- Settings section structure for file watcher -->
+                            <nav>
+                                <ul>
+                                    <li>
+                                        <a href="#section-file-watcher">
+                                            <img src="/public/file.svg" alt="File Watcher">
+                                            <span>File Watcher</span>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </nav>
+
+                            <div id="section-file-watcher" class="section">
+                                <div class="section-title">File Watcher</div>
+                                <div class="section-description">Configure automatic log file monitoring and error investigation.</div>
+
+                                <!-- Filewatcher Panel -->
+                                <div id="filewatcher-panel">
+                                    <div class="filewatcher-header">
+                                        <h3>Configured Watchers</h3>
+                                        <button class="btn btn-ok" onclick="filewatcherManager.createWatcher()">
+                                            <i class="fas fa-plus"></i> Create Watcher
+                                        </button>
+                                    </div>
+
+                                    <!-- Tabs for Watchers and Investigations -->
+                                    <div class="tabs">
+                                        <div class="tab active" onclick="filewatcherManager.switchTab('watchers')">Watchers</div>
+                                        <div class="tab" onclick="filewatcherManager.switchTab('investigations')">Investigations</div>
+                                    </div>
+
+                                    <!-- Watchers Tab Content -->
+                                    <div id="watchers-tab" class="tab-content active">
+                                        <div id="filewatcher-list">
+                                            <div class="empty-state">Loading watchers...</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Investigations Tab Content -->
+                                    <div id="investigations-tab" class="tab-content">
+                                        <div id="investigation-list">
+                                            <div class="empty-state">Loading investigations...</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="modal-footer">
@@ -1664,6 +1719,59 @@
                 </div>
             </div>
         </template>
+    </div>
+
+    <!-- Filewatcher Modal -->
+    <div id="filewatcher-modal" class="hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Configure File Watcher</h3>
+                <button class="modal-close" onclick="filewatcherManager.closeModal()">&times;</button>
+            </div>
+            
+            <form id="watcher-form" onsubmit="event.preventDefault(); filewatcherManager.saveWatcher()">
+                <input type="hidden" id="watcher-id" value="">
+                
+                <div class="form-group">
+                    <label for="watcher-name">Name</label>
+                    <input type="text" id="watcher-name" required>
+                    <div class="help-text">A descriptive name for this watcher</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="watcher-directory">Directory</label>
+                    <input type="text" id="watcher-directory" required>
+                    <div class="help-text">The directory to monitor for log files</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="watcher-pattern">File Pattern (optional)</label>
+                    <input type="text" id="watcher-pattern" placeholder="*.log">
+                    <div class="help-text">Glob pattern to match specific files (e.g., *.log, error-*.txt)</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="watcher-error-patterns">Error Patterns</label>
+                    <textarea id="watcher-error-patterns" rows="5">(?i)\berror\b
+(?i)\bexception\b
+(?i)\bfailed\b
+(?i)\bcrash
+(?i)\bcritical\b</textarea>
+                    <div class="help-text">Regular expressions to match errors (one per line)</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="watcher-prompt">Investigation Prompt</label>
+                    <textarea id="watcher-prompt" rows="4">Investigate the error found in the log file and determine its root cause.</textarea>
+                    <div class="help-text">Instructions for the agent when investigating errors</div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-small" onclick="filewatcherManager.closeModal()">Cancel</button>
+                    <button type="submit" class="btn-small btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Drag and Drop Overlay -->

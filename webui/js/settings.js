@@ -68,6 +68,14 @@ const settingsModalProxy = {
                 }
             }
             
+            // When switching to the filewatcher tab, initialize filewatcher manager
+            if (tabName === 'filewatcher') {
+                console.log('Switching to filewatcher tab, initializing filewatcher manager');
+                if (window.filewatcherManager && typeof window.filewatcherManager.init === 'function') {
+                    window.filewatcherManager.init();
+                }
+            }
+            
             // When switching to the tunnel tab, initialize tunnelSettings
             if (tabName === 'tunnel') {
                 console.log('Switching to tunnel tab, initializing tunnelSettings');
