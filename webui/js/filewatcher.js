@@ -56,9 +56,14 @@ window.filewatcherManager = {
     
     async loadWatchers() {
         try {
-            const response = await api.sendData("filewatcher_list", {});
-            if (response.watchers) {
-                this.renderWatchers(response.watchers);
+            const response = await fetch("/filewatcher_list", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({})
+            });
+            const data = await response.json();
+            if (data.watchers) {
+                this.renderWatchers(data.watchers);
             } else {
                 this.renderWatchers([]);
             }
@@ -70,9 +75,14 @@ window.filewatcherManager = {
     
     async loadInvestigations() {
         try {
-            const response = await api.sendData("filewatcher_investigations", {});
-            if (response.investigations) {
-                this.renderInvestigations(response.investigations);
+            const response = await fetch("/filewatcher_investigations", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({})
+            });
+            const data = await response.json();
+            if (data.investigations) {
+                this.renderInvestigations(data.investigations);
             } else {
                 this.renderInvestigations([]);
             }
@@ -213,8 +223,13 @@ window.filewatcherManager = {
     
     async editWatcher(watcherId) {
         try {
-            const response = await api.sendData("filewatcher_list", {});
-            const watcher = response.watchers.find(w => w.id === watcherId);
+            const response = await fetch("/filewatcher_list", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({})
+            });
+            const data = await response.json();
+            const watcher = data.watchers.find(w => w.id === watcherId);
             
             if (watcher) {
                 const formContainer = document.getElementById('filewatcher-form-container');
@@ -240,6 +255,7 @@ window.filewatcherManager = {
     },
     
     async saveWatcher() {
+        console.log('Saving watcher...');
         const watcherId = document.getElementById('watcher-id').value;
         const data = {
             name: document.getElementById('watcher-name').value,
@@ -247,28 +263,70 @@ window.filewatcherManager = {
             file_pattern: document.getElementById('watcher-pattern').value,
             prompt: document.getElementById('watcher-prompt').value,
             error_patterns: document.getElementById('watcher-error-patterns').value
-                .split('\\n')
+                .split('\n')  // Fixed: was using '\\n' which would look for literal \n
                 .filter(p => p.trim())
         };
         
+        console.log('Watcher data:', data);
+        
         try {
+            let response;
             if (watcherId) {
                 // Update existing
-                await api.sendData("filewatcher_update", {
-                    watcher_id: watcherId,
-                    ...data
+                response = await fetch("/filewatcher_update", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        watcher_id: watcherId,
+                        ...data
+                    })
                 });
             } else {
                 // Create new
-                await api.sendData("filewatcher_create", data);
+                response = await fetch("/filewatcher_create", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(data)
+                });
+            }
+            
+            if (!response.ok) {
+                let errorMessage = 'Failed to save watcher';
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || errorMessage;
+                } catch (e) {
+                    // If not JSON, try to get text
+                    try {
+                        errorMessage = await response.text();
+                    } catch (e2) {
+                        errorMessage = `Server error (${response.status})`;
+                    }
+                }
+                console.error('Server error:', errorMessage);
+                throw new Error(errorMessage);
+            }
+            
+            const result = await response.json();
+            console.log('API response:', result);
+            
+            if (result.error) {
+                throw new Error(result.error);
             }
             
             this.cancelEdit();
             this.loadWatchers();
-            showToast("Watcher saved successfully", "success");
+            
+            if (window.showToast) {
+                window.showToast("Watcher saved successfully", "success");
+            } else {
+                console.log("Watcher saved successfully");
+            }
         } catch (error) {
             console.error("Failed to save watcher:", error);
-            showToast("Failed to save watcher", "error");
+            if (window.showToast) {
+                window.showToast("Failed to save watcher: " + error.message, "error");
+            }
         }
     },
     
@@ -276,12 +334,24 @@ window.filewatcherManager = {
         if (!confirm("Are you sure you want to delete this watcher?")) return;
         
         try {
-            await api.sendData("filewatcher_delete", { watcher_id: watcherId });
+            const response = await fetch("/filewatcher_delete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ watcher_id: watcherId })
+            });
+            const result = await response.json();
+            if (result.error) {
+                throw new Error(result.error);
+            }
             this.loadWatchers();
-            showToast("Watcher deleted successfully", "success");
+            if (window.showToast) {
+                window.showToast("Watcher deleted successfully", "success");
+            }
         } catch (error) {
             console.error("Failed to delete watcher:", error);
-            showToast("Failed to delete watcher", "error");
+            if (window.showToast) {
+                window.showToast("Failed to delete watcher", "error");
+            }
         }
     },
     
@@ -289,31 +359,62 @@ window.filewatcherManager = {
         const newState = currentState === 'active' ? 'stopped' : 'active';
         
         try {
-            await api.sendData("filewatcher_update", {
-                watcher_id: watcherId,
-                state: newState
+            const response = await fetch("/filewatcher_update", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    watcher_id: watcherId,
+                    state: newState
+                })
             });
+            const result = await response.json();
+            if (result.error) {
+                throw new Error(result.error);
+            }
             this.loadWatchers();
         } catch (error) {
             console.error("Failed to toggle watcher:", error);
-            showToast("Failed to toggle watcher", "error");
+            if (window.showToast) {
+                window.showToast("Failed to toggle watcher", "error");
+            }
         }
     },
     
     async updateInvestigation(investigationId, status) {
         try {
-            await api.sendData("filewatcher_update_investigation", {
-                investigation_id: investigationId,
-                status: status
+            const response = await fetch("/filewatcher_update_investigation", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    investigation_id: investigationId,
+                    status: status
+                })
             });
+            const result = await response.json();
+            if (result.error) {
+                throw new Error(result.error);
+            }
             this.loadInvestigations();
-            showToast("Investigation updated", "success");
+            if (window.showToast) {
+                window.showToast("Investigation updated", "success");
+            }
         } catch (error) {
             console.error("Failed to update investigation:", error);
-            showToast("Failed to update investigation", "error");
+            if (window.showToast) {
+                window.showToast("Failed to update investigation", "error");
+            }
         }
     },
     
+    
+    async browseDirectory() {
+        // For now, just show a helpful message
+        // TODO: Integrate with the work_dir file browser when available
+        const currentValue = document.getElementById('watcher-directory').value;
+        const suggestion = currentValue || '/var/log';
+        
+        showToast('Enter the full path to the directory you want to monitor (e.g., ' + suggestion + ')', 'info');
+    },
     
     escapeHtml(unsafe) {
         return unsafe
@@ -515,10 +616,19 @@ document.addEventListener('DOMContentLoaded', () => {
         .form-group textarea {
             width: 100%;
             padding: 8px 12px;
-            border: 1px solid var(--border-color);
+            border: 1px solid var(--color-secondary);
             border-radius: 4px;
-            background: var(--secondary-bg);
-            color: var(--text-primary);
+            background: var(--color-background);
+            color: var(--color-text);
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            background: var(--color-background-dark, #151515);
         }
         
         .form-group textarea {
@@ -530,6 +640,31 @@ document.addEventListener('DOMContentLoaded', () => {
             font-size: 12px;
             color: var(--text-secondary);
             margin-top: 4px;
+        }
+        
+        .input-with-button {
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+        }
+        
+        .input-with-button input {
+            flex: 1;
+        }
+        
+        .btn-browse {
+            padding: 8px 16px;
+            background: var(--button-bg);
+            color: var(--button-text);
+            border: 1px solid var(--color-secondary);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-browse:hover {
+            background: var(--button-hover-bg);
+            border-color: var(--accent-color);
         }
         
         .form-actions {

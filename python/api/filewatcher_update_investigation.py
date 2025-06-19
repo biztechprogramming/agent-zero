@@ -3,7 +3,7 @@ from python.tools.filewatcher import FilewatcherManager
 
 
 class FilewatcherUpdateInvestigation(ApiHandler):
-    async def process(self, data, ws, connection_id):
+    async def process(self, data, request):
         # Extract parameters
         investigation_id = data.get("investigation_id", "").strip()
         

@@ -3,7 +3,7 @@ from python.tools.filewatcher import FilewatcherManager
 
 
 class FilewatcherList(ApiHandler):
-    async def process(self, data, ws, connection_id):
+    async def process(self, data, request):
         # Get manager instance
         manager = await FilewatcherManager.get()
         

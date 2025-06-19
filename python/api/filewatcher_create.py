@@ -3,7 +3,7 @@ from python.tools.filewatcher import FilewatcherManager, FileWatcher
 
 
 class FilewatcherCreate(ApiHandler):
-    async def process(self, data, ws, connection_id):
+    async def process(self, data, request):
         # Extract parameters
         name = data.get("name", "").strip()
         directory = data.get("directory", "").strip()
@@ -36,6 +36,9 @@ class FilewatcherCreate(ApiHandler):
             if not prompt:
                 prompt = "Investigate the error found in the log file and determine its root cause."
             
+            # Log the data we're trying to create
+            print(f"Creating watcher: name={name}, directory={directory}, patterns={error_patterns}")
+            
             watcher = FileWatcher(
                 name=name,
                 directory=directory,
@@ -46,10 +49,8 @@ class FilewatcherCreate(ApiHandler):
             
             manager.add_watcher(watcher)
             
-            # Start watching automatically
-            from python.tools.filewatcher import FilewatcherTool
-            tool = FilewatcherTool(agent=None, name="filewatcher", args={}, message="")
-            await tool._start_watch_task(manager, watcher)
+            # Don't start watching automatically - let the manager handle it
+            # when it's properly initialized with an agent context
             
             return {
                 "success": True,
@@ -57,4 +58,7 @@ class FilewatcherCreate(ApiHandler):
             }
             
         except Exception as e:
+            import traceback
+            print(f"Error creating watcher: {str(e)}")
+            print(traceback.format_exc())
             return {"error": str(e)}

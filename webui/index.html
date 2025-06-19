@@ -1495,7 +1495,12 @@
                                                 
                                                 <div class="form-group">
                                                     <label for="watcher-directory">Directory</label>
-                                                    <input type="text" id="watcher-directory" required>
+                                                    <div class="input-with-button">
+                                                        <input type="text" id="watcher-directory" required>
+                                                        <button type="button" class="btn-browse" onclick="filewatcherManager.browseDirectory()" title="Browse">
+                                                            <i class="fas fa-folder-open"></i>
+                                                        </button>
+                                                    </div>
                                                     <div class="help-text">The directory to monitor for log files</div>
                                                 </div>
                                             </div>

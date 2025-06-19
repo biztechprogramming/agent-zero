@@ -3,7 +3,7 @@ from python.tools.filewatcher import FilewatcherManager
 
 
 class FilewatcherDelete(ApiHandler):
-    async def process(self, data, ws, connection_id):
+    async def process(self, data, request):
         # Extract parameters
         watcher_id = data.get("watcher_id", "").strip()
         

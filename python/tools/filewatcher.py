@@ -75,7 +75,7 @@ class FilewatcherManager:
         # Load watchers
         if os.path.exists(self.watchers_file):
             try:
-                data = json.loads(files.read_file(self.watchers_file, "r"))
+                data = json.loads(files.read_file(self.watchers_file))
                 for watcher_data in data:
                     watcher = FileWatcher(**watcher_data)
                     self.watchers[watcher.id] = watcher
@@ -85,7 +85,7 @@ class FilewatcherManager:
         # Load investigations
         if os.path.exists(self.investigations_file):
             try:
-                data = json.loads(files.read_file(self.investigations_file, "r"))
+                data = json.loads(files.read_file(self.investigations_file))
                 for inv_data in data:
                     inv = ErrorInvestigation(**inv_data)
                     self.investigations[inv.id] = inv
@@ -94,11 +94,11 @@ class FilewatcherManager:
 
     def _save_watchers(self):
         data = [w.model_dump(mode='json') for w in self.watchers.values()]
-        files.write_file(self.watchers_file, json.dumps(data, indent=2, default=str), "w")
+        files.write_file(self.watchers_file, json.dumps(data, indent=2, default=str))
 
     def _save_investigations(self):
         data = [i.model_dump(mode='json') for i in self.investigations.values()]
-        files.write_file(self.investigations_file, json.dumps(data, indent=2, default=str), "w")
+        files.write_file(self.investigations_file, json.dumps(data, indent=2, default=str))
 
     def add_watcher(self, watcher: FileWatcher) -> FileWatcher:
         self.watchers[watcher.id] = watcher
@@ -191,12 +191,23 @@ class FilewatcherTool(Tool):
                            error_patterns: List[str] = None, prompt: str = None, **kwargs):
         manager = await FilewatcherManager.get()
         
-        # Validate directory exists
+        # Validate directory path
+        # If the path doesn't start with /, assume it's relative and make it absolute
+        if not directory.startswith('/'):
+            directory = '/' + directory
+            
         if not os.path.exists(directory):
-            return Response(
-                message=f"Directory '{directory}' does not exist",
-                break_loop=False
-            )
+            # Try to create the directory if it doesn't exist
+            try:
+                os.makedirs(directory, exist_ok=True)
+                message = f"Created directory '{directory}' and set up file watcher '{name}'"
+            except Exception as e:
+                return Response(
+                    message=f"Directory '{directory}' does not exist and could not be created: {str(e)}",
+                    break_loop=False
+                )
+        else:
+            message = f"Created file watcher '{name}' for directory '{directory}'"
         
         # Default prompt if not provided
         if not prompt:
@@ -226,7 +237,7 @@ class FilewatcherTool(Tool):
         await self._start_watch_task(manager, watcher)
         
         return Response(
-            message=f"Created file watcher '{name}' for directory '{directory}'",
+            message=message,
             break_loop=False
         )
 
